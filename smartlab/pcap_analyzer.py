@@ -1,5 +1,5 @@
 import pandas as pd
-from scapy.all import rdpcap, TCP, IP, Raw
+from scapy.all import PcapReader, TCP, IP, Raw, Scapy_Exception
 import struct
 from collections import defaultdict
 
@@ -12,7 +12,7 @@ ASSET_IP_FILE = '자산IP.csv'
 INPUT_MAPPING_FILE = '유선_Input.csv'
 OUTPUT_MAPPING_FILE = '유선_Output.csv'
 
-# --- 2. 매핑 데이터 로드 및 전처리 ---
+# --- 2. 매핑 데이터 로드 ---
 try:
     # CSV 파일들을 UTF-8으로 읽기 시도, 실패 시 CP949로 읽음
     try:
@@ -28,99 +28,94 @@ try:
     
     register_mappings = {}
     for index, row in df_input.iterrows():
-        # Input은 Coil (1-9999) 또는 Discrete Input (10001-19999)으로 가정
-        # 여기서는 Coil로 가정하고 0-based index로 변환 (address - 1)
         register_mappings[('coil', row['RegisterAddress'] - 1)] = row['Description']
 
     for index, row in df_output.iterrows():
-        # Output은 Holding Register (40001-49999)로 가정
-        # 0-based index로 변환 (address - 40001)
         register_mappings[('holding', row['RegisterAddress'] - 40001)] = row['Description']
 
 except Exception as e:
     print(f"오류: CSV 파일 처리 중 문제 발생: {e}")
     exit()
 
-# Modbus Function Code 설명
 modbus_func_codes = {
     1: "Read Coils", 2: "Read Discrete Inputs", 3: "Read Holding Registers",
     4: "Read Input Registers", 5: "Write Single Coil", 6: "Write Single Register",
     15: "Write Multiple Coils", 16: "Write Multiple Registers",
 }
 
-# --- 3. PCAP 파일 분석 함수 ---
-def analyze_pcap(pcap_file):
-    print(f"\n--- {pcap_file} 파일 상세 분석 시작 ---\n")
-    try:
-        packets = rdpcap(pcap_file)
-    except Exception as e:
-        print(f"오류: PCAP 파일 로딩 중 문제 발생: {e}")
-        return
-
-    total_packets = len(packets)
+# --- 3. PCAP 스트리밍 분석 함수 ---
+def analyze_pcap_stream(pcap_file):
+    print(f"\n--- {pcap_file} 파일 스트리밍 분석 시작 --- (결과가 즉시 출력됩니다)\n")
+    
+    total_packets = 0
     total_bytes = 0
     protocol_counts = defaultdict(int)
 
-    for i, pkt in enumerate(packets):
-        total_bytes += len(pkt)
-        protocol = "Other"
+    try:
+        with PcapReader(pcap_file) as pcap_reader:
+            for pkt in pcap_reader:
+                total_packets += 1
+                total_bytes += len(pkt)
+                protocol = "Other"
+                meaningful_description = ""
 
-        if IP in pkt:
-            src_ip = pkt[IP].src
-            dst_ip = pkt[IP].dst
-            src_asset = ip_to_asset.get(src_ip, src_ip)
-            dst_asset = ip_to_asset.get(dst_ip, dst_ip)
-            meaningful_description = ""
+                if IP in pkt:
+                    src_ip = pkt[IP].src
+                    dst_ip = pkt[IP].dst
+                    src_asset = ip_to_asset.get(src_ip, src_ip)
+                    dst_asset = ip_to_asset.get(dst_ip, dst_ip)
+                    
+                    if TCP in pkt and (pkt[TCP].dport == 502 or pkt[TCP].sport == 502):
+                        protocol = "Modbus/TCP"
+                        if Raw in pkt:
+                            pdu = pkt[Raw].load
+                            if len(pdu) >= 7:
+                                func_code = pdu[6]
+                                is_response = 'Rsp' in pkt.summary()
 
-            # 프로토콜 식별 및 카운트
-            if TCP in pkt and (pkt[TCP].dport == 502 or pkt[TCP].sport == 502):
-                protocol = "Modbus/TCP"
-                if Raw in pkt:
-                    pdu = pkt[Raw].load
-                    if len(pdu) >= 7:
-                        func_code = pdu[6]
-                        is_response = 'Rsp' in pkt.summary() # 응답 여부 간단히 확인
+                                if not is_response and func_code in modbus_func_codes:
+                                    if func_code in [1, 3] and len(pdu) >= 12:
+                                        addr = struct.unpack('>H', pdu[7:9])[0]
+                                        count = struct.unpack('>H', pdu[9:11])[0]
+                                        reg_type = 'coil' if func_code == 1 else 'holding'
+                                        desc = register_mappings.get((reg_type, addr), f"주소 {addr}")
+                                        meaningful_description = f"'{modbus_func_codes[func_code]}' 요청: '{desc}'부터 {count}개 읽기"
+                                    
+                                    elif func_code == 5 and len(pdu) >= 11:
+                                        addr = struct.unpack('>H', pdu[7:9])[0]
+                                        value = "ON" if struct.unpack('>H', pdu[9:11])[0] == 0xff00 else "OFF"
+                                        desc = register_mappings.get(('coil', addr), f"주소 {addr}")
+                                        meaningful_description = f"'{modbus_func_codes[func_code]}' 요청: '{desc}' 상태를 [{value}]으로 변경"
+                                    
+                                    elif func_code == 6 and len(pdu) >= 11:
+                                        addr = struct.unpack('>H', pdu[7:9])[0]
+                                        value = struct.unpack('>H', pdu[9:11])[0]
+                                        desc = register_mappings.get(('holding', addr), f"주소 {addr}")
+                                        meaningful_description = f"'{modbus_func_codes[func_code]}' 요청: '{desc}' 값을 [{value}]으로 설정"
+                                else:
+                                    meaningful_description = f"'{modbus_func_codes.get(func_code, 'Unknown')}' 관련 응답 또는 기타 명령"
 
-                        if not is_response: # 요청 분석
-                            if func_code in [1, 3] and len(pdu) >= 12:
-                                addr = struct.unpack('>H', pdu[7:9])[0]
-                                count = struct.unpack('>H', pdu[9:11])[0]
-                                reg_type = 'coil' if func_code == 1 else 'holding'
-                                desc = register_mappings.get((reg_type, addr), f"주소 {addr}")
-                                meaningful_description = f"'{modbus_func_codes[func_code]}' 요청: '{desc}'부터 {count}개 읽기"
-                            
-                            elif func_code == 5 and len(pdu) >= 11:
-                                addr = struct.unpack('>H', pdu[7:9])[0]
-                                value = "ON" if struct.unpack('>H', pdu[9:11])[0] == 0xff00 else "OFF"
-                                desc = register_mappings.get(('coil', addr), f"주소 {addr}")
-                                meaningful_description = f"'{modbus_func_codes[func_code]}' 요청: '{desc}' 상태를 [{value}]으로 변경"
-                            
-                            elif func_code == 6 and len(pdu) >= 11:
-                                addr = struct.unpack('>H', pdu[7:9])[0]
-                                value = struct.unpack('>H', pdu[9:11])[0]
-                                desc = register_mappings.get(('holding', addr), f"주소 {addr}")
-                                meaningful_description = f"'{modbus_func_codes[func_code]}' 요청: '{desc}' 값을 [{value}]으로 설정"
-                        else: # 응답 분석
-                            meaningful_description = f"'{modbus_func_codes.get(func_code, 'Unknown')}'에 대한 응답"
+                    elif TCP in pkt and (pkt[TCP].dport == 102 or pkt[TCP].sport == 102):
+                        protocol = "S7COMM"
+                        meaningful_description = "Siemens S7 통신"
+                    
+                    elif pkt.haslayer('ARP'):
+                        protocol = "ARP"
+                        if pkt.op == 1: meaningful_description = f"ARP 요청: {pkt.pdst}의 MAC 주소 문의"
+                        else: meaningful_description = f"ARP 응답: {pkt.psrc}는 {pkt.hwsrc}에 있음"
+                    
+                protocol_counts[protocol] += 1
 
-            elif TCP in pkt and (pkt[TCP].dport == 102 or pkt[TCP].sport == 102):
-                protocol = "S7COMM"
-                meaningful_description = "Siemens S7 통신"
-            
-            elif pkt.haslayer('ARP'):
-                protocol = "ARP"
-                if pkt.op == 1: meaningful_description = f"ARP 요청: {pkt.pdst}의 MAC 주소 문의"
-                else: meaningful_description = f"ARP 응답: {pkt.psrc}는 {pkt.hwsrc}에 있음"
-            
-            protocol_counts[protocol] += 1
-            
-            # 상세 분석 결과 출력
-            if meaningful_description:
-                print(f"--- 패킷 #{i+1} ({pkt.time:.2f}s) ---")
-                print(f"{src_asset}  ->  {dst_asset}")
-                print(f"프로토콜: {protocol}")
-                print(f"의미: {meaningful_description}\n")
+                if meaningful_description:
+                    print(f"--- 패킷 #{total_packets} ({pkt.time:.2f}s) ---")
+                    print(f"{src_asset}  ->  {dst_asset}")
+                    print(f"프로토콜: {protocol}")
+                    print(f"의미: {meaningful_description}\n")
 
+    except Scapy_Exception as e:
+        print(f"오류: PCAP 파일 처리 중 문제 발생: {e}")
+        return
+    
     # --- 4. 분석 요약 정보 출력 ---
     print("\n" + "="*40)
     print("📊 분석 결과 요약 (Analysis Summary)")
@@ -143,7 +138,8 @@ def analyze_pcap(pcap_file):
     
     print("\n" + "="*40)
 
+
 # --- 5. 분석 실행 ---
 if __name__ == "__main__":
-    analyze_pcap(PCAPNG_FILE)
+    analyze_pcap_stream(PCAPNG_FILE)
     print("\n--- 모든 작업 종료 ---")
