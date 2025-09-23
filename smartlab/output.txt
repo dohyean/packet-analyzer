@@ -1,0 +1,3 @@
+--- 패킷 #1 (1758509520.727524000) ---
+Siemens HMI (HMI) -> Siemens PLC S7-1200 (PLC)
+프로토콜: S7COMM
