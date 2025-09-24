@@ -2,3 +2,6 @@ IP,자산명,역할
 192.168.10.80,Siemens HMI,HMI
 192.168.10.47,Siemens PLC S7-1200,PLC
 192.168.10.81,Weintek HMI,HMI
+192.168.10.50,LS Electric PLC,PLC
+192.168.10.60,Mitsubishi PLC,PLC
+192.168.10.70,Hidden PLC (Mitsubishi),PLC

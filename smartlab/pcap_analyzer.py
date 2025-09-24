@@ -18,11 +18,9 @@ try:
     df_input = pd.read_csv(INPUT_MAPPING_FILE)
     df_output = pd.read_csv(OUTPUT_MAPPING_FILE)
 
-    # 실제 CSV 파일의 컬럼명으로 수정 ('IP', '자산명', '역할' 등)
     ip_to_asset = {row['IP']: f"{row['자산명']} ({row['역할']})" for index, row in df_asset_ip.iterrows()}
     
     register_mappings = {}
-    # Input.csv는 Coil (주소 1~), Output.csv는 Holding Register (주소 40001~)로 가정
     for index, row in df_input.iterrows():
         register_mappings[('coil', row['RegisterAddress'] - 1)] = row['Description']
     for index, row in df_output.iterrows():
@@ -68,7 +66,7 @@ def analyze_pcap_to_files(pcap_file):
                     if Raw in pkt and len(pkt[Raw].load) >= 7:
                         pdu = pkt[Raw].load
                         func_code = pdu[6]
-                        is_response = (pkt[TCP].sport == 502) # 서버 포트(502)에서 출발하면 응답
+                        is_response = (pkt[TCP].sport == 502)
 
                         if not is_response and func_code in modbus_func_codes:
                             if func_code in [1, 3] and len(pdu) >= 12:
@@ -90,12 +88,20 @@ def analyze_pcap_to_files(pcap_file):
 
                 elif TCP in pkt and (pkt[TCP].dport == 102 or pkt[TCP].sport == 102):
                     protocol = "S7COMM"
-                    meaningful_description = "Siemens S7 통신 (상세 분석은 pyshark 필요)"
+                    meaningful_description = "Siemens S7 통신"
 
                 elif pkt.haslayer('ARP'):
                     protocol = "ARP"
                     if pkt.op == 1: meaningful_description = f"ARP 요청: {pkt.pdst}의 MAC 주소 문의"
                     else: meaningful_description = f"ARP 응답: {pkt.psrc}는 {pkt.hwsrc}에 있음"
+                
+                else: # TCP, UDP 등 기타 IP 프로토콜 식별
+                    if pkt.haslayer(TCP):
+                        protocol = 'TCP'
+                    elif pkt.haslayer('UDP'):
+                        protocol = 'UDP'
+                    elif pkt.haslayer('ICMP'):
+                        protocol = 'ICMP'
                 
                 protocol_counts[protocol] += 1
                 
@@ -112,7 +118,12 @@ def analyze_pcap_to_files(pcap_file):
         f_sum.write("="*40 + "\n\n")
         f_sum.write("[전체 트래픽 정보]\n")
         f_sum.write(f"  - 총 패킷 수: {total_packets} 개\n")
-        # ... (이하 요약 내용 작성 부분은 동일) ...
+        if total_bytes > 1024 * 1024:
+            f_sum.write(f"  - 전체 트래픽 양: {total_bytes / (1024*1024):.2f} MB\n")
+        elif total_bytes > 1024:
+            f_sum.write(f"  - 전체 트래픽 양: {total_bytes / 1024:.2f} KB\n")
+        else:
+            f_sum.write(f"  - 전체 트래픽 양: {total_bytes} Bytes\n")
         f_sum.write("\n[프로토콜별 비율]\n")
         sorted_protocols = sorted(protocol_counts.items(), key=lambda item: item[1], reverse=True)
         for proto, count in sorted_protocols:
