@@ -45,14 +45,14 @@ string classify_req_res_error(
         if (kv.first == "dst_ip") dst_ip = kv.second;
     }
 
-    if ((size_t)(pdu_start) >= frame.size()) throw runtime_error("Invalid PDU start index");
     uint8_t func = frame[pdu_start];
-    bool is_error = (func & 0x80);
+    bool is_error = (func >= 0x80);
+
+    if (is_error) return "error";
 
     if (src_ip == scada_ip) {
         return "request";
     } else {
-        if (is_error) return "error";
         return "response";
     }
 }
@@ -103,19 +103,26 @@ int main() {
     // Modbus/TCP Request, Response, Error frames
     vector<string> req_data = {
         "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 03 6d 40 00 40 06 c3 e4 b9 af 00 03 b9 af 00 05 e6 54 01 f6 a6 d0 cc 60 41 89 89 a6 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 77 32 eb 86 7f 00 03 00 00 00 06 01 01 00 19 00 01", // 0x01
+        "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 66 7e 40 00 40 06 60 d3 b9 af 00 03 b9 af 00 05 e6 5a 01 f6 9c 95 77 8a 9a ce 61 dd 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 a1 32 eb 86 aa 00 05 00 00 00 06 01 02 00 05 00 01", // 0X02
+    
         "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 d5 99 40 00 40 06 f1 b7 b9 af 00 03 b9 af 00 05 e6 50 01 f6 9f 54 9c 44 24 7c 6f 42 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 4b 32 eb 86 54 00 01 00 00 00 06 01 04 00 23 00 02", // 0x04
     };
     vector<uint8_t> req_frame = hex_to_bytes(req_data[number]);
     
     vector<string> res_data = {
         "02 42 b9 af 00 03 02 42 b9 af 00 05 08 00 45 00 00 3e 5b be 40 00 40 06 6b 95 b9 af 00 05 b9 af 00 03 01 f6 e6 54 41 89 89 a6 a6 d0 cc 6c 80 18 01 fd 73 97 00 00 01 01 08 0a 32 eb 86 80 84 5b 99 77 00 03 00 00 00 04 01 01 01 00", // 0x01
+        "02 42 b9 af 00 03 02 42 b9 af 00 05 08 00 45 00 00 3e 6d 4f 40 00 40 06 5a 04 b9 af 00 05 b9 af 00 03 01 f6 e6 5a 9a ce 61 dd 9c 95 77 96 80 18 01 fd 73 97 00 00 01 01 08 0a 32 eb 86 ab 84 5b 99 a1 00 05 00 00 00 04 01 02 01 00", // 0X02
+    
         "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 d5 99 40 00 40 06 f1 b7 b9 af 00 05 b9 af 00 03 e6 50 01 f6 9f 54 9c 44 24 7c 6f 42 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 4b 32 eb 86 54 00 01 00 00 00 07 01 04 04 11 11 22 22", // 0x04
     };
     vector<uint8_t> res_frame = hex_to_bytes(res_data[number]);
 
     vector<string> err_data = {
         "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 d5 99 40 00 40 06 f1 b7 b9 af 00 03 b9 af 00 05 e6 50 01 f6 9f 54 9c 44 24 7c 6f 42 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 4b 32 eb 86 54 00 01 00 00 00 03 01 81 01", // exception 0x01
-        "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 d5 99 40 00 40 06 f1 b7 b9 af 00 03 b9 af 00 05 e6 50 01 f6 9f 54 9c 44 24 7c 6f 42 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 4b 32 eb 86 54 00 01 00 00 00 03 01 84 02", // exception 0x01
+        "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 d5 99 40 00 40 06 f1 b7 b9 af 00 03 b9 af 00 05 e6 50 01 f6 9f 54 9c 44 24 7c 6f 42 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 4b 32 eb 86 54 00 01 00 00 00 03 01 82 02", // exception 0x02
+    
+    
+        "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 d5 99 40 00 40 06 f1 b7 b9 af 00 03 b9 af 00 05 e6 50 01 f6 9f 54 9c 44 24 7c 6f 42 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 4b 32 eb 86 54 00 01 00 00 00 03 01 84 02", // exception 0x04
     };
     vector<uint8_t> err_frame = hex_to_bytes(err_data[number]);
 
