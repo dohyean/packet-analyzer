@@ -12,6 +12,10 @@
 #include "header/ModbusTCPHeader.h"
 #include "header/ModbusHeader.h"
 
+#include <iostream>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 using namespace std;
 
 vector<uint8_t> hex_to_bytes(const string& hex_data) {
@@ -59,28 +63,28 @@ string classify_req_res_error(
 
 
 void process_frame(const vector<uint8_t>& frame) {
-    // cout << "======================================== Ethernet 결과\n";
+    cout << "======================================== Ethernet 결과\n";
     auto [dst, src, etype] = EtherHeader::ethernet_header_parser(frame);
-    // cout << "  dst_mac    : " << EtherHeader::format_mac(dst.data()) << "\n";
-    // cout << "  src_mac    : " << EtherHeader::format_mac(src.data()) << "\n";
-    // cout << "  ether_type : 0x" << hex << setw(4) << setfill('0') << etype
-    //      << dec << " (" << EtherHeader::format_ether_type(etype) << ")\n";
+    cout << "  dst_mac    : " << EtherHeader::format_mac(dst.data()) << "\n";
+    cout << "  src_mac    : " << EtherHeader::format_mac(src.data()) << "\n";
+    cout << "  ether_type : 0x" << hex << setw(4) << setfill('0') << etype
+         << dec << " (" << EtherHeader::format_ether_type(etype) << ")\n";
 
-    // cout << "======================================== IPv4 결과\n";
+    cout << "======================================== IPv4 결과\n";
     auto [ip_fields, tcp_offset] = IPv4Header::ipv4_header_parser(frame);
-    // for (auto &kv : ip_fields) cout << "  " << kv.first << " : " << kv.second << "\n";
-    // cout << "  tcp_offset        : " << tcp_offset << "\n";
+    for (auto &kv : ip_fields) cout << "  " << kv.first << " : " << kv.second << "\n";
+    cout << "  tcp_offset        : " << tcp_offset << "\n";
 
-    // cout << "======================================== TCP 결과\n";
+    cout << "======================================== TCP 결과\n";
     auto [tcp_fields, modbus_offset] = TCPHeader::tcp_header_parser(frame, tcp_offset);
-    // for (auto &kv : tcp_fields) cout << "  " << kv.first << " : " << kv.second << "\n";
-    // cout << "  mobus/TCP offset : " << modbus_offset << "\n";
+    for (auto &kv : tcp_fields) cout << "  " << kv.first << " : " << kv.second << "\n";
+    cout << "  mobus/TCP offset : " << modbus_offset << "\n";
 
-    // cout << "======================================== modbus/TCP 결과\n";
+    cout << "======================================== modbus/TCP 결과\n";
     auto [mbtcp_fields, pdu_start, pdu_end] = ModbusTCPHeader::modbus_tcp_header_parser(frame, modbus_offset);
-    // for (auto &kv : mbtcp_fields) cout << "  " << kv.first << " : " << kv.second << "\n";
-    // cout << "  PDU start      : " << pdu_start << "\n";
-    // cout << "  PDU end        : " << pdu_end << "\n";
+    for (auto &kv : mbtcp_fields) cout << "  " << kv.first << " : " << kv.second << "\n";
+    cout << "  PDU start      : " << pdu_start << "\n";
+    cout << "  PDU end        : " << pdu_end << "\n";
 
     cout << "======================================== req, res, err 결과\n";
     string type = classify_req_res_error(ip_fields, frame, pdu_start, pdu_end, "185.175.0.3");
@@ -98,8 +102,60 @@ void process_frame(const vector<uint8_t>& frame) {
 }
 
 
+json process_frame_json(const vector<uint8_t>& frame) {
+    json result;
+
+    // Ethernet
+    auto [dst, src, etype] = EtherHeader::ethernet_header_parser(frame);
+    result["Ethernet"]["dst_mac"] = EtherHeader::format_mac(dst.data());
+    result["Ethernet"]["src_mac"] = EtherHeader::format_mac(src.data());
+    std::ostringstream oss;
+    oss << std::hex << std::setw(4) << std::setfill('0') << etype;
+    result["Ethernet"]["ether_type"] = "0x" + oss.str();
+    
+    // IPv4
+    auto [ip_fields, tcp_offset] = IPv4Header::ipv4_header_parser(frame);
+    for (auto &kv : ip_fields) {
+        result["IPv4"][kv.first] = kv.second;
+    }
+    result["IPv4"]["tcp_offset"] = tcp_offset;
+
+    // TCP
+    auto [tcp_fields, modbus_offset] = TCPHeader::tcp_header_parser(frame, tcp_offset);
+    for (auto &kv : tcp_fields) {
+        result["TCP"][kv.first] = kv.second;
+    }
+    result["TCP"]["modbus_tcp_offset"] = modbus_offset;
+
+    // Modbus/TCP Header (MBAP)
+    auto [mbtcp_fields, pdu_start, pdu_end] = ModbusTCPHeader::modbus_tcp_header_parser(frame, modbus_offset);
+    for (auto &kv : mbtcp_fields) {
+        result["ModbusTCP"][kv.first] = kv.second;
+    }
+    result["ModbusTCP"]["pdu_start"] = pdu_start;
+    result["ModbusTCP"]["pdu_end"] = pdu_end;
+
+    // classify (req/resp/error)
+    string type = classify_req_res_error(ip_fields, frame, pdu_start, pdu_end, "185.175.0.3");
+    result["Classification"]["type"] = type;
+
+    // Modbus PDU
+    try {
+        auto mb_fields = ModbusHeader::parse(frame, pdu_start, pdu_end, type);
+        for (auto &kv : mb_fields) {
+            result["ModbusPDU"][kv.first] = kv.second;
+        }
+    } catch (const std::exception &e) {
+        result["ModbusPDU"]["error"] = e.what();
+    }
+
+    return result;
+}
+
+
+
 int main() {
-    int number = 0;
+    int number = 1;
     // Modbus/TCP Request, Response, Error frames
     vector<string> req_data = {
         "02 42 b9 af 00 05 02 42 b9 af 00 03 08 00 45 00 00 40 03 6d 40 00 40 06 c3 e4 b9 af 00 03 b9 af 00 05 e6 54 01 f6 a6 d0 cc 60 41 89 89 a6 80 18 01 f6 73 99 00 00 01 01 08 0a 84 5b 99 77 32 eb 86 7f 00 03 00 00 00 06 01 01 00 19 00 01", // 0x01
@@ -129,8 +185,12 @@ int main() {
     string SCADA_IP = "185.175.0.3";
 
     process_frame(req_frame);
-    process_frame(res_frame);
-    process_frame(err_frame);
+    // process_frame(res_frame);
+    // process_frame(err_frame);
+
+    // json j = process_frame_json(req_frame);
+    // std::cout << j.dump(4) << std::endl;
 
     cout << "========================================\n최종 실행 단계: Modbus PDU 파싱\n";
+    return 0;
 }
