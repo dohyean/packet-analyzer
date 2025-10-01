@@ -185,7 +185,8 @@ int main() {
     // run_modbus_process_test(modbus_0x01_testing, expected_0x01, "0x01");
     // run_modbus_process_test(modbus_0x02_testing, expected_0x02, "0x02");
     // run_modbus_process_test(modbus_0x03_testing, expected_0x03, "0x03");
-    run_modbus_process_test(modbus_0x04_testing, expected_0x04, "0x04");
+    // run_modbus_process_test(modbus_0x04_testing, expected_0x04, "0x04");
+    run_modbus_process_test(modbus_0x05_testing, expected_0x05, "0x05");
 
     // cout << "========================================\n최종 실행 단계: Modbus PDU 파싱\n";
     return 0;
