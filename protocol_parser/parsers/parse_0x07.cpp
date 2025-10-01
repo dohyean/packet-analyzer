@@ -18,10 +18,10 @@ ModbusHeader::parse_0x07(const std::vector<uint8_t>& frame, int pdu_start, int p
     else if(type == "response"){
         // response PDU 유효성 검사
         if (frame.size() - (size_t)pdu_start < 2) {
-            throw std::runtime_error("Invalid Modbus 0x06 response: PDU too short");
+            throw std::runtime_error("Invalid Modbus 0x07 response: PDU too short");
         }
         if (frame.size() - (size_t)pdu_start > 2) {
-            throw std::runtime_error("Invalid Modbus 0x06 response: PDU too long");
+            throw std::runtime_error("Invalid Modbus 0x07 response: PDU too long");
         }
 
         // response input_data 추출
