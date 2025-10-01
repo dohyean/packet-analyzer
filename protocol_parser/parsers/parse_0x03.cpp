@@ -32,7 +32,7 @@ ModbusHeader::parse_0x03(const std::vector<uint8_t>& frame, int pdu_start, int p
     }
     else if(type == "response"){
         // response PDU 유효성 검사
-        if (pdu_end - pdu_start < 2) {
+        if (frame.size() - (size_t)pdu_start < 2) {
             throw std::runtime_error("Invalid Modbus 0x03 response: PDU too short");
         }
 
