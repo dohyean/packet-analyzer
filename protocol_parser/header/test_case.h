@@ -25,6 +25,26 @@ inline const std::vector<std::string> expected_0x01 = {
     "❌ 예외 발생 - Byte count does not match actual data length",
 };
 
+// ----------------------------- 0x02------------------------------
+inline const std::vector<std::string> modbus_0x02_testing = {
+    "0242b9af00050242b9af0003080045000040667e4000400660d3b9af0003b9af0005e65a01f69c95778a9ace61dd801801f6739900000101080a845b99a132eb86aa0005000000060102000500a0",
+    "0242b9af00050242b9af0003080045000040667e4000400660d3b9af0003b9af0005e65a01f69c95778a9ace61dd801801f6739900000101080a845b99a132eb86aa0005000000060102000500",
+    "0242b9af00050242b9af0003080045000040667e4000400660d3b9af0003b9af0005e65a01f69c95778a9ace61dd801801f6739900000101080a845b99a132eb86aa0005000000060102000507D1",
+    "0242b9af00030242b9af000508004500003e6d4f400040065a04b9af0005b9af000301f6e65a9ace61dd9c957796801801fd739700000101080a32eb86ab845b99a100050000000401020400011011",
+    "0242b9af00030242b9af000508004500003e6d4f400040065a04b9af0005b9af000301f6e65a9ace61dd9c957796801801fd739700000101080a32eb86ab845b99a1000500000004010201",
+    "0242b9af00030242b9af000508004500003e6d4f400040065a04b9af0005b9af000301f6e65a9ace61dd9c957796801801fd739700000101080a32eb86ab845b99a10005000000040102fe00",
+    "0242b9af00030242b9af000508004500003e6d4f400040065a04b9af0005b9af000301f6e65a9ace61dd9c957796801801fd739700000101080a32eb86ab845b99a10005000000040102010010",
+}; 
+
+inline const std::vector<std::string> expected_0x02 = {
+    "✅ 정상 request - discrete input 읽기",
+    "❌ 예외 발생 - PDU too short",
+    "❌ 예외 발생 - Quantity of Coils out of range",
+    "✅ 정상 response - discrete input 반환",
+    "❌ 예외 발생 - PDU too short",
+    "❌ 예외 발생 - Byte count out of range",
+    "❌ 예외 발생 - Byte count does not match actual data length",
+};
 
 
 // ----------------------------- 0x03------------------------------
@@ -39,10 +59,10 @@ inline const std::vector<std::string> modbus_0x03_testing = {
 }; 
 
 inline const std::vector<std::string> expected_0x03 = {
-    "✅ 정상 request - 10개 레지스터 읽기",
+    "✅ 정상 request - register 읽기",
     "❌ 예외 발생 - PDU too short",
     "❌ 예외 발생 - Quantity of Registers out of range",
-    "✅ 정상 response - 10개 레지스터 반환",
+    "✅ 정상 response - register 반환",
     "❌ 예외 발생 - Byte count must be even",
     "❌ 예외 발생 - Byte count does not match actual data length",
     "❌ 예외 발생 - Byte count out of range"
