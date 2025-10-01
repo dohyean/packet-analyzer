@@ -15,6 +15,7 @@ ModbusHeader::parse(const std::vector<uint8_t>& frame, int pdu_start, int pdu_en
     if (func == 0x04) return parse_0x04(frame, pdu_start, pdu_end, type);
     if (func == 0x05) return parse_0x05(frame, pdu_start, pdu_end, type);
     if (func == 0x06) return parse_0x06(frame, pdu_start, pdu_end, type);
+    if (func == 0x07) return parse_0x07(frame, pdu_start, pdu_end, type);
 
     std::stringstream ss;
     ss << "Unsupported Function Code: 0x" << std::hex << std::setw(2) << std::setfill('0') << (int)func;

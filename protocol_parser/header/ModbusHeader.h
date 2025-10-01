@@ -36,16 +36,16 @@ public:
     parse_0x05(const std::vector<uint8_t>& frame, int pdu_start, int pdu_end, const std::string type);
 
 
-    // 구현 중인 데이터
-    
     static std::vector<std::pair<std::string,std::string>>
     parse_0x06(const std::vector<uint8_t>& frame, int pdu_start, int pdu_end, const std::string type);
 
 
-    // 구현을 해야하는 데이터
-
+    // 구현 중인 데이터
+    
     static std::vector<std::pair<std::string,std::string>>
     parse_0x07(const std::vector<uint8_t>& frame, int pdu_start, int pdu_end, const std::string type);
+
+    // 구현을 해야하는 데이터
 
     static std::vector<std::pair<std::string,std::string>>
     parse_0x08(const std::vector<uint8_t>& frame, int pdu_start, int pdu_end, const std::string type);
