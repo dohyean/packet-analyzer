@@ -66,7 +66,6 @@ ModbusHeader::parse_0x03(const std::vector<uint8_t>& frame, int pdu_start, int p
         }
         
         // response 필드 추가
-        fields.push_back({"type", "response"});
         fields.push_back({"Byte Count", std::to_string(byte_count)});
         fields.push_back({"Register Values", ss.str()});
     }
