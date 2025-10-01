@@ -1,0 +1,76 @@
+#include "ModbusHeader.h"
+
+#include <iostream>
+
+std::vector<std::pair<std::string,std::string>>
+ModbusHeader::parse_0x03(const std::vector<uint8_t>& frame, int pdu_start, int pdu_end, const std::string type){
+    std::vector<std::pair<std::string,std::string>> fields;
+    fields.push_back({"function_code", "0x03"});
+    fields.push_back({"function_name", "Read Holding Registers"});
+
+    if(type == "request"){
+        // request PDU 유효성 검사
+        if (frame.size() < (size_t)(pdu_end)) {
+            throw std::runtime_error("Invalid Modbus 0x03 request: PDU too short");
+        }
+        if(pdu_end - pdu_start > 5) {
+            throw std::runtime_error("Invalid Modbus 0x03 request: PDU too long");
+        }
+
+        // request starting_address, quantity_of_registers 추출
+        uint16_t start_addr = (frame[pdu_start+1] << 8) | frame[pdu_start+2];
+        uint16_t quantity_register = (frame[pdu_start+3] << 8) | frame[pdu_start+4];
+    
+        // request quantity_of_registers 유효성 검사
+        if(quantity_register < 1 || quantity_register > 125) {
+            throw std::runtime_error("Invalid Modbus 0x03 request: Quantity of Registers out of range");
+        }
+
+        // request 필드 추가
+        fields.push_back({"Starting Address", std::to_string(start_addr)});
+        fields.push_back({"Quantity of Registers", std::to_string(quantity_register)});
+    }
+    else if(type == "response"){
+        // response PDU 유효성 검사
+        if (pdu_end - pdu_start < 2) {
+            throw std::runtime_error("Invalid Modbus 0x03 response: PDU too short");
+        }
+
+        // response byte_count 추출
+        uint8_t byte_count = frame[pdu_start+1];
+
+
+        // response byte_count 유효성 검사
+        if(byte_count % 2 != 0) {
+            throw std::runtime_error("Invalid Modbus 0x03 response: Byte count must be even");
+        }
+        if(byte_count < 2 || byte_count > 250) {
+            throw std::runtime_error("Invalid Modbus 0x03 response: Byte count out of range");
+        }
+
+        // response byte_count와 실제 데이터 길이 일치 여부 검사
+        if(byte_count != frame.size() - pdu_start - 2) {
+            throw std::runtime_error("Invalid Modbus 0x03 response: Byte count does not match actual data length");
+        }
+
+        // response register value 추출
+        std::vector<uint16_t> regs;
+        for (int i=0; i<byte_count/2; i++) {
+            uint16_t reg = (frame[pdu_start+2+i*2] << 8) | frame[pdu_start+3+i*2];
+            regs.push_back(reg);
+        }
+
+        // response register value 포맷팅
+        std::stringstream ss;
+        for (size_t i=0; i<regs.size(); i++) {
+            ss << regs[i];
+            if (i+1 < regs.size()) ss << ",";
+        }
+        
+        // response 필드 추가
+        fields.push_back({"type", "response"});
+        fields.push_back({"byte_count", std::to_string(byte_count)});
+        fields.push_back({"Register Values", ss.str()});
+    }
+    return fields;
+}
