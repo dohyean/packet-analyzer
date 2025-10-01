@@ -19,7 +19,7 @@ ModbusHeader::parse_0x05(const std::vector<uint8_t>& frame, int pdu_start, int p
         uint16_t output_addr = (frame[pdu_start+1] << 8) | frame[pdu_start+2];
         uint16_t output_value = (frame[pdu_start+3] << 8) | frame[pdu_start+4];
     
-        // request ouput_value 유효성 검사
+        // request output_value 유효성 검사
         if(output_value != 0x0000 && output_value != 0xFF00) {
             throw std::runtime_error("Invalid Modbus 0x05 request: Output Value must be 0x0000 or 0xFF00");
         }
@@ -41,9 +41,9 @@ ModbusHeader::parse_0x05(const std::vector<uint8_t>& frame, int pdu_start, int p
         uint16_t output_addr = (frame[pdu_start+1] << 8) | frame[pdu_start+2];
         uint16_t output_value = (frame[pdu_start+3] << 8) | frame[pdu_start+4];
 
-        // response ouput_value 유효성 검사
+        // response output_value 유효성 검사
         if(output_value != 0x0000 && output_value != 0xFF00) {
-            throw std::runtime_error("Invalid Modbus 0x05 request: Output Value must be 0x0000 or 0xFF00");
+            throw std::runtime_error("Invalid Modbus 0x05 response: Output Value must be 0x0000 or 0xFF00");
         }
 
         // response 필드 추가
