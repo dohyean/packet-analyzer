@@ -44,15 +44,15 @@ std::vector<std::pair<int,std::string>> ModbusHeader::EXCEPTION_NAMES = {
 
 std::vector<std::pair<std::string,std::string>>
 ModbusHeader::parse(const std::vector<uint8_t>& frame, int pdu_start, int pdu_end, const std::string type) {
-    if (frame.size() < (size_t)(pdu_end)) throw std::runtime_error("pdu too small");
+    // if (frame.size() < (size_t)(pdu_end)) {
+    //     throw std::runtime_error("pdu too small");
+    // }
     uint8_t func = frame[pdu_start];
     if (func & 0x80) return parseException(frame, pdu_start, pdu_end);
 
     if (func == 0x01) return parse_0x01(frame, pdu_start, pdu_end, type);
     if (func == 0x02) return parse_0x02(frame, pdu_start, pdu_end, type);
-
-    // 아래는 테스트로 구현
-    if (func == 0x04) return parse_0x04(frame, pdu_start, pdu_end, type);
+    if (func == 0x03) return parse_0x03(frame, pdu_start, pdu_end, type);
 
     std::stringstream ss;
     ss << "Unsupported Function Code: 0x" << std::hex << std::setw(2) << std::setfill('0') << (int)func;

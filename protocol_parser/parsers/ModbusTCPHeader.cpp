@@ -3,7 +3,9 @@
 
 std::tuple<std::vector<std::pair<std::string,std::string>>, int, int>
 ModbusTCPHeader::modbus_tcp_header_parser(const std::vector<uint8_t>& frame, int modbus_offset) {
-    if (frame.size() < (size_t)(modbus_offset + 7)) throw std::runtime_error("modbus header too small");
+    if (frame.size() < (size_t)(modbus_offset + 7)) {
+        throw std::runtime_error("Invalid Modbus TCP : modbus header too small");
+    }
     uint16_t tid = (frame[modbus_offset]<<8) | frame[modbus_offset+1];
     uint16_t pid = (frame[modbus_offset+2]<<8) | frame[modbus_offset+3];
     uint16_t length = (frame[modbus_offset+4]<<8) | frame[modbus_offset+5];
