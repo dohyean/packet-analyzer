@@ -15,7 +15,7 @@ ModbusHeader::parse_0x06(const std::vector<uint8_t>& frame, int pdu_start, int p
             throw std::runtime_error("Invalid Modbus 0x06 request: PDU too long");
         }
 
-        // request output_address, output_value 추출
+        // request register_address, register_value 추출
         uint16_t register_addr = (frame[pdu_start+1] << 8) | frame[pdu_start+2];
         uint16_t register_value = (frame[pdu_start+3] << 8) | frame[pdu_start+4];
     
@@ -32,7 +32,7 @@ ModbusHeader::parse_0x06(const std::vector<uint8_t>& frame, int pdu_start, int p
             throw std::runtime_error("Invalid Modbus 0x06 response: PDU too long");
         }
 
-        // response output_address, output_value 추출
+        // response register_address, register_value 추출
         uint16_t register_addr = (frame[pdu_start+1] << 8) | frame[pdu_start+2];
         uint16_t register_value = (frame[pdu_start+3] << 8) | frame[pdu_start+4];
 
