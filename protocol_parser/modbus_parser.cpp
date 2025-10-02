@@ -191,7 +191,8 @@ int main() {
     // run_modbus_process_test(modbus_0x06_testing, expected_0x06, "0x06");
 
     // Serial Line Only Function
-    run_modbus_process_test(modbus_0x07_testing, expected_0x07, "0x07");
+    // run_modbus_process_test(modbus_0x07_testing, expected_0x07, "0x07");
+    run_modbus_process_test(modbus_0x08_testing, expected_0x08, "0x08");
 
     // cout << "========================================\n최종 실행 단계: Modbus PDU 파싱\n";
     return 0;

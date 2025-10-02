@@ -7,6 +7,7 @@
 std::vector<std::pair<std::string,std::string>>
 ModbusHeader::parse(const std::vector<uint8_t>& frame, int pdu_start, int pdu_end, const std::string type) {
     uint8_t func = frame[pdu_start];
+    
     if (func & 0x80) return parseException(frame, pdu_start, pdu_end);
 
     if (func == 0x01) return parse_0x01(frame, pdu_start, pdu_end, type);
@@ -16,6 +17,7 @@ ModbusHeader::parse(const std::vector<uint8_t>& frame, int pdu_start, int pdu_en
     if (func == 0x05) return parse_0x05(frame, pdu_start, pdu_end, type);
     if (func == 0x06) return parse_0x06(frame, pdu_start, pdu_end, type);
     if (func == 0x07) return parse_0x07(frame, pdu_start, pdu_end, type);
+    if (func == 0x08) return parse_0x08(frame, pdu_start, pdu_end, type);
 
     std::stringstream ss;
     ss << "Unsupported Function Code: 0x" << std::hex << std::setw(2) << std::setfill('0') << (int)func;
@@ -58,6 +60,31 @@ std::vector<std::pair<int,std::string>> ModbusHeader::EXCEPTION_NAMES = {
     {0x08, "MEMORY PARITY ERROR"}, 
     {0x0A, "GATEWAY PATH UNAVAILABLE"},
     {0x0B, "GATEWAY TARGET DEVICE FAILED TO RESPOND"}
+};
+
+std::vector<std::pair<int,std::string>> ModbusHeader::SUB_FUNCTION_NAMES = {
+    // Sub Function Codes
+    {0x0000, "Return Query Data"},
+    {0x0001, "Restart Communications Option"},
+    {0x0002, "Return Diagnostic Register"},
+    {0x0003, "Change ASCII Input Delimiter"},
+    {0x0004, "Force Listen Only Mode"},
+    {0x0005, "RESERVED"},
+    {0x0006, "RESERVED"},
+    {0x0007, "RESERVED"},
+    {0x0008, "RESERVED"},
+    {0x0009, "RESERVED"},
+    {0x000A, "Clear Counters and Diagnostic Register"},
+    {0x000B, "Return Bus Message Count"},
+    {0x000C, "Return Bus Communication Error Count"},
+    {0x000D, "Return Bus Exception Error Count"},
+    {0x000E, "Return Server Message Count"},
+    {0x000F, "Return Server No Response Count"},
+    {0x0010, "Return Server NAK Count"},
+    {0x0011, "Return Server Busy Count"},
+    {0x0012, "Return Bus Character Overrun Count"},
+    {0x0014, "Clear Overrun Counter and Flag"},
+    {0xFFFF, "RESERVED or Unknown"},
 };
 
 // 아래는 추후 분할 예정
